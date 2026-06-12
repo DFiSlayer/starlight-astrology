@@ -742,28 +742,25 @@
   }
 
   /* ── MOBILE: Hide sidebar, show fixed bottom nav bar ── */
-  @media (max-width: 600px) {
-    #sidebar { display: none !important; }
-    #sidebarBackdrop { display: none !important; }
-    .main {
-      margin-left: 0 !important;
-      max-width: 100vw !important;
-      padding-top: 60px !important;
-      padding-bottom: 90px !important;
-    }
-    /* Fixed top bar with chart selector */
-    #mobileTopBar {
-      display: flex !important;
-    }
-    /* Fixed bottom nav */
-    #mobileBottomNav {
-      display: flex !important;
-    }
+  /* Sidebar always hidden — using top/bottom nav instead */
+  #sidebar { display: none !important; }
+  #sidebarBackdrop { display: none !important; }
+  .main {
+    margin-left: 0 !important;
+    max-width: 100vw !important;
+    padding-top: 60px !important;
+    padding-bottom: 90px !important;
   }
 
-  /* Mobile top bar — hidden on desktop */
+  /* Mobile top bar — always visible */
   #mobileTopBar {
-    display: none;
+    display: flex !important;
+  }
+  /* Bottom nav — always visible */
+  #mobileBottomNav {
+    display: flex !important;
+  }
+  #mobileTopBar {
     position: fixed;
     top: 0; left: 0; right: 0;
     height: 52px;
@@ -851,24 +848,30 @@
   }
   .mobile-nav-btn.active .mnav-label { color: var(--accent-violet); }
   .mobile-nav-btn.active .mnav-icon { filter: drop-shadow(0 0 4px var(--accent-violet)); }
+
+  /* Desktop: bigger nav labels and icons since there's space */
+  @media (min-width: 601px) {
+    .mobile-nav-btn { padding: 8px 16px; }
+    .mobile-nav-btn .mnav-icon { font-size: 22px; }
+    .mobile-nav-btn .mnav-label { font-size: 9px; letter-spacing: 1px; }
+    #mobileTopBar { height: 56px; padding: 0 24px; }
+    #mobileTopBar .mobile-logo { font-size: 15px; }
+    #mobileTopBar select { font-size: 14px; padding: 6px 10px; }
+    .main { padding-top: 68px !important; }
+  }
+
   @media (max-width: 380px) {
-    /* Stack date + time vertically */
     .form-row { grid-template-columns: 1fr; }
-    /* Tighter sidebar */
-    #sidebar { width: 60px; }
-    .nav-label { display: none; }
-    /* Tighter modal */
     .modal { padding: 16px 14px; }
-    /* Sub-tabs smaller text */
     .sub-tab { padding: 8px 10px; font-size: 9px; letter-spacing: 1px; }
-    /* Planet table font shrink */
     .scroll-table td, .scroll-table th { font-size: 12px; padding: 6px 8px; }
   }
 
-  /* ── MEDIUM PHONE (381–480px) ── */
   @media (min-width: 381px) and (max-width: 480px) {
     .form-row { grid-template-columns: 1fr 1fr; }
   }
+
+  .warning-banner {
     background: rgba(255,217,122,0.08);
     border: 1px solid rgba(255,217,122,0.2);
     border-radius: 8px;
