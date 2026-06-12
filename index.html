@@ -871,6 +871,35 @@
     .form-row { grid-template-columns: 1fr 1fr; }
   }
 
+  .premium-gate {
+    text-align: center;
+    padding: 16px 12px;
+    background: rgba(180,127,255,0.05);
+    border: 1px solid rgba(180,127,255,0.2);
+    border-radius: 10px;
+    margin: 4px 0;
+  }
+  .premium-lock {
+    font-size: 22px;
+    color: var(--accent-gold);
+    margin-bottom: 4px;
+    filter: drop-shadow(0 0 6px rgba(255,217,122,0.4));
+  }
+  .premium-label {
+    font-family: 'Cinzel', serif;
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--accent-violet);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .premium-sub {
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.5;
+    max-width: 280px;
+    margin: 0 auto;
+  }
   .warning-banner {
     background: rgba(255,217,122,0.08);
     border: 1px solid rgba(255,217,122,0.2);
@@ -1000,6 +1029,7 @@
     <button class="btn-sm" onclick="exportCharts()">⬇ Export</button>
     <button class="btn-sm" onclick="importCharts()">⬆ Import</button>
     <input type="file" id="importFile" style="display:none" accept=".json" onchange="importCharts(event)">
+    <button class="btn-sm" onclick="isPremium()?alert('✦ Premium is active. License: '+localStorage.getItem('starlight_license')):showLicenseEntry()" style="border-color:var(--accent-gold);color:var(--accent-gold);" id="premiumFooterBtn">✦ Premium</button>
   </div>
 
   <!-- Collapsed-state new chart button — only visible when sidebar is collapsed -->
@@ -1307,6 +1337,65 @@ let charts = {};
 let activeChartId = null;
 const APP_VERSION = '1.0.0-rc1';
 const APP_BUILD_DATE = '2026-06-10';
+const STRIPE_LINK = 'https://buy.stripe.com/3cI00k1A920L1qi99O9sk00';
+
+// ── PREMIUM SYSTEM ──
+function isPremium() {
+  try { return localStorage.getItem('starlight_premium') === '1'; } catch(e) { return false; }
+}
+function activatePremium(code) {
+  const clean = code.trim().toUpperCase();
+  // Master code
+  if (clean === 'STRLGHT-STAR-2026') {
+    try { localStorage.setItem('starlight_premium','1'); localStorage.setItem('starlight_license',clean); return true; } catch(e){return false;}
+  }
+  // Customer codes: STRLGHT-XXXX-XXXX
+  // Valid if format matches AND simple checksum passes
+  // Checksum: sum of char codes of part1 mod 36, encoded as base-36, must match last char of part2
+  if (!/^STRLGHT-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(clean)) return false;
+  const part1 = clean.slice(8,12);
+  const part2 = clean.slice(13,17);
+  const BASE36 = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const sum = part1.split('').reduce((a,c)=>a+c.charCodeAt(0),0);
+  const checkChar = BASE36[sum % 36];
+  if (part2[3] !== checkChar) return false;
+  try { localStorage.setItem('starlight_premium','1'); localStorage.setItem('starlight_license',clean); return true; } catch(e){return false;}
+}
+
+// Code generator — run this in browser console to make valid codes:
+// generateLicenseCode() → returns a valid STRLGHT-XXXX-XXXX code
+function generateLicenseCode() {
+  const BASE36='0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const rand4=()=>Array.from({length:4},()=>BASE36[Math.floor(Math.random()*36)]).join('');
+  const part1=rand4();
+  const sum=part1.split('').reduce((a,c)=>a+c.charCodeAt(0),0);
+  const checkChar=BASE36[sum%36];
+  const part2=rand4().slice(0,3)+checkChar;
+  return `STRLGHT-${part1}-${part2}`;
+}
+function openStripe() { window.open(STRIPE_LINK, '_blank'); }
+function premiumGate(content) {
+  if (isPremium()) return content;
+  return `<div class="premium-gate">
+    <div class="premium-lock">✦</div>
+    <div class="premium-label">Premium Interpretation</div>
+    <div class="premium-sub">Unlock full readings for all aspects, BaZi pillars, lots, astrocartography &amp; synastry.</div>
+    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:10px;">
+      <button class="btn-primary" onclick="openStripe()" style="font-size:11px;padding:7px 14px;">Unlock Premium — $5.00</button>
+      <button class="btn-cancel" onclick="showLicenseEntry()" style="font-size:11px;padding:7px 14px;">Enter Code</button>
+    </div>
+  </div>`;
+}
+function showLicenseEntry() {
+  const code = prompt('Enter your license code:\n(Format: STRLGHT-XXXX-XXXX)');
+  if (!code) return;
+  if (activatePremium(code)) {
+    alert('✦ Premium unlocked! Thank you for your support.');
+    renderAll();
+  } else {
+    alert('Invalid license code. Please check the format and try again.\nExpected: STRLGHT-XXXX-XXXX');
+  }
+}
 const CHART_SCHEMA_VERSION = 3; // bumped to 3 to force recalc of all saved charts with correct lot formulas
 
 // Load from localStorage
@@ -1444,11 +1533,18 @@ function saveCharts() {
 function getActive() { return activeChartId ? charts[activeChartId] : null; }
 
 function showEmptyState() {
+  const premStatus = isPremium()
+    ? `<div style="font-size:12px;color:var(--accent-mint);font-family:'Cinzel',serif;letter-spacing:1px;margin-bottom:16px;">✦ Premium Unlocked</div>`
+    : `<div style="margin-bottom:20px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+        <button onclick="openStripe()" style="background:rgba(255,217,122,0.12);border:1px solid var(--accent-gold);border-radius:8px;color:var(--accent-gold);font-family:'Cinzel',serif;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;padding:10px 18px;cursor:pointer;">✦ Unlock Premium — $5.00</button>
+        <button onclick="showLicenseEntry()" style="background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--text-dim);font-family:'Cinzel',serif;font-size:10px;letter-spacing:1px;padding:10px 14px;cursor:pointer;">Enter Code</button>
+      </div>`;
   document.getElementById('mainContent').innerHTML = `
     <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:80vh;text-align:center;padding:40px;">
       <div style="font-size:48px;margin-bottom:24px;opacity:0.4;">✦</div>
       <div style="font-family:'Cinzel Decorative',serif;font-size:20px;color:var(--accent-gold);margin-bottom:4px;letter-spacing:2px;">Starlight Astrology</div>
-      <div style="font-family:'Cinzel',serif;font-size:11px;color:var(--accent-violet);letter-spacing:3px;margin-bottom:12px;">v1.0.0 RC1 · June 2026</div>
+      <div style="font-family:'Cinzel',serif;font-size:11px;color:var(--accent-violet);letter-spacing:3px;margin-bottom:16px;">v1.0.0 RC1 · June 2026</div>
+      ${premStatus}
       <div style="font-size:15px;color:var(--text-secondary);margin-bottom:32px;max-width:360px;line-height:1.7;">
         Add your first chart to begin. Enter a name, birth date, time, and city — the ephemeris engine will calculate everything.
       </div>
@@ -2035,7 +2131,7 @@ function renderAspects(c) {
       <td style="font-size:12px;color:var(--text-dim)">${natureLabel}</td>
     </tr>
     <tr class="expand-row"><td colspan="6"><div class="expand-content" id="asp-${i}">
-      ${asp.a} ${asp.asp} ${asp.b} (${asp.orb} orb) — value ${asp.val > 0?'+':''}${asp.val}. ${asp.nature === 'soft' ? 'These energies work in harmony, amplifying each other constructively.' : (asp.nature === 'hard' ? 'These energies create productive tension requiring integration and conscious work.' : 'Complex interplay of generational forces — both challenge and depth.')}
+      ${premiumGate(`${asp.a} ${asp.asp} ${asp.b} (${asp.orb} orb) — value ${asp.val > 0?'+':''}${asp.val}. ${asp.nature === 'soft' ? 'These energies work in harmony, amplifying each other constructively.' : (asp.nature === 'hard' ? 'These energies create productive tension requiring integration and conscious work.' : 'Complex interplay of generational forces — both challenge and depth.')}`)}
     </div></td></tr>`;
   });
   document.getElementById('aspectTableBody').innerHTML = rows;
@@ -2136,7 +2232,7 @@ function renderLots(c) {
       <td><span class="house-num">H${l.house}</span></td>
       <td style="font-size:13px;color:var(--text-dim);font-style:italic;">${l.meaning}</td>
     </tr>
-    <tr class="expand-row"><td colspan="6"><div class="expand-content" id="lot-${i}">${getLotExpand(l)}</div></td></tr>`;
+    <tr class="expand-row"><td colspan="6"><div class="expand-content" id="lot-${i}">${premiumGate(getLotExpand(l))}</div></td></tr>`;
   });
 
   // Color legend — explains why each lot has its color
@@ -2426,6 +2522,11 @@ function renderSynastry() {
   crossAspects.slice(0, 6).forEach(a => {
     const colA = PCOLS[a.nameA] || colorA;
     const colB = PCOLS[a.nameB] || colorB;
+    const synInterp = a.nature === 'soft'
+      ? `${a.nameA} and ${a.nameB} connect in natural flow — this aspect brings ease, resonance, and mutual support between these energies.`
+      : a.nature === 'hard'
+      ? `${a.nameA} and ${a.nameB} create dynamic tension — this aspect generates growth through friction, requiring conscious integration.`
+      : `${a.nameA} and ${a.nameB} form a complex activation — powerful, transformative, and not easily resolved into simple harmony.`;
     html += `<div style="background:var(--bg-card);border:1px solid var(--border);border-left:3px solid ${a.color};border-radius:8px;padding:12px;">
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap;">
         <span style="color:${colA};font-weight:600;font-size:13px;">${a.nameA}</span>
@@ -2433,7 +2534,8 @@ function renderSynastry() {
         <span style="color:${colB};font-weight:600;font-size:13px;">${a.nameB}</span>
         <span style="color:var(--text-dim);font-size:11px;font-family:Cinzel,serif;">${a.asp}</span>
       </div>
-      <div style="font-size:11px;color:var(--text-dim);font-family:Cinzel,serif;letter-spacing:0.5px;">Orb ${a.orb}° · ${a.nature === 'soft' ? '✦ Flowing' : a.nature === 'hard' ? '✦ Challenging' : '✦ Activating'}</div>
+      <div style="font-size:11px;color:var(--text-dim);font-family:Cinzel,serif;letter-spacing:0.5px;margin-bottom:8px;">Orb ${a.orb}° · ${a.nature === 'soft' ? '✦ Flowing' : a.nature === 'hard' ? '✦ Challenging' : '✦ Activating'}</div>
+      ${premiumGate(synInterp)}
     </div>`;
   });
   html += `</div></div>`;
@@ -4404,7 +4506,7 @@ function renderBazi(c) {
         <div style="text-align:center;font-size:13px;color:${branchColor};margin-top:4px;">${BRANCH_PY[branchIdx]} — ${BRANCH_EN[branchIdx]}</div>
         ${hidden.length ? `<div style="text-align:center;font-size:11px;color:var(--text-dim);margin-top:6px;">Hidden: ${hidden.map(h=>`<span style="color:${STEMS_COL[h]}">${STEMS_ZH[h]} ${STEMS_EN[h]}</span>`).join(', ')}</div>` : ''}
       </div>
-      <div style="margin-top:10px;font-size:12px;color:var(--text-secondary);font-style:italic;line-height:1.55;">${tgMeaning}</div>
+      <div style="margin-top:10px;font-size:12px;color:var(--text-secondary);font-style:italic;line-height:1.55;">${premiumGate(tgMeaning)}</div>
     </div>`;
   }
 
@@ -4651,7 +4753,7 @@ function renderAstrocarto(c) {
           </div>
         </div>
         <div style="font-size:13px;color:${pColor};font-family:Cinzel,serif;margin-bottom:8px;line-height:1.4;word-break:break-word;">${regionStr}</div>
-        <p style="font-size:13px;color:var(--text-secondary);line-height:1.7;margin:0 0 6px;">${meaning}</p>
+        <p style="font-size:13px;color:var(--text-secondary);line-height:1.7;margin:0 0 6px;">${premiumGate(meaning)}</p>
         <div style="font-size:11px;color:var(--text-dim);margin-top:6px;font-style:italic;">${DOMAIN_DESCRIPTIONS[domain]}</div>
       </div>`;
   });
